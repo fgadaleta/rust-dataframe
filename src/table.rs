@@ -374,7 +374,7 @@ impl <'a> Column {
                 for i in 0..values.len() {
                     if values.is_valid(i) { continue }
                     else {
-                        values.value(i) = replace_with;
+                        values.value(i) = replace_with;  // nah... :( 
                     }
                 }
 
