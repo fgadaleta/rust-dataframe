@@ -367,12 +367,11 @@ impl <'a> Column {
 
                 let values = values.as_any().downcast_ref::<Float64Array>().unwrap();
                 for i in 0..values.len() {
-                    // let mut value = values.value(i) as f64;
                     if values.is_valid(i) { continue }
                     else {
-                        *values.value(i) = replace_with;
+                        values.value(i) = replace_with;
                     }
-                    
+
                 }
 
             },
@@ -410,37 +409,6 @@ impl <'a> Column {
             // println!("num_null: {:?}", num_nulls);
             // bmap.
         }
-
-
-        let ca = self.data();
-        println!("num_chunks: {}", ca.num_chunks());
-        let onechunk = ca.chunk(0);
-        // let null_in_chunk = onechunk.null_count();
-        // println!("null_in_chunk: {}", null_in_chunk);
-        let data = onechunk.data();
-        let null_bmp = data.null_bitmap();
-        let maplen = match null_bmp {
-            Some(map) => map.len(),
-            None => 0
-        };
-
-        let bitmap = null_bmp.clone().unwrap();
-        for i in 0..maplen {
-            let is_set = bitmap.is_set(i);
-            println!("elem {} is_set={}", i, is_set);
-        }
-
-        println!("{:?}", null_bmp);
-
-        // for i in 0..values.len() {
-        //     // println!("{} valid: {}", i, values.is_valid(i));
-        //     let mut this_value = values.value(i);
-
-        //     if !values.is_valid(i) {
-        //         values.value()
-        //     }
-        // }
-
 
     }
 
