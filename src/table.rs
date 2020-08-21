@@ -348,16 +348,16 @@ impl <'a> Column {
 
     /// Fill null elements in column with value
     pub fn fillna(&self, value: GenericType) {
-        let elem_type = match value {
+        // assert replacement is compatible with column type
+        let elem_type = match value.clone() {
             GenericType::I(v) => DataType::Int64,
             GenericType::F(v) => DataType::Float64,
             GenericType::S(v) => DataType::Utf8,
         };
-        // can fill only compatible column type
         assert_eq!(&elem_type, self.data_type());
 
-        let mut values = self.to_array().unwrap();
-
+        // cast elements to column type
+        let values = self.to_array().unwrap();
         match self.data_type() {
             DataType::Float64 => {
                 let replace_with = match value {
@@ -365,13 +365,17 @@ impl <'a> Column {
                     _ => panic!("Should not get here!")
                 };
 
-                let values = values.as_any().downcast_ref::<Float64Array>().unwrap();
+                let mut values: &arrow::array::PrimitiveArray<arrow::datatypes::Float64Type> = values.as_any().downcast_ref::<Float64Array>().unwrap();
+                // let arraydata = values.data_ref();
+                // let arraybuffers = arraydata.buffers();
+                // let some = arraybuffers[0].raw_data();
+                // println!("some {:?}", unsafe{*some});
+
                 for i in 0..values.len() {
                     if values.is_valid(i) { continue }
                     else {
                         values.value(i) = replace_with;
                     }
-
                 }
 
             },
