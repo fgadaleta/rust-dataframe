@@ -145,6 +145,12 @@ pub enum GenericVector {
     S(Vec<String>),
 }
 
+#[derive(Debug, Clone)]
+pub enum GenericType {
+    I(i64),
+    F(f64),
+    S(String)
+}
 
 impl GenericVector {
     fn len(&self) -> usize {
@@ -154,7 +160,7 @@ impl GenericVector {
                 Self::S(v) => v.len()
             }
         }
-
+    
 }
 
 impl <'a> Column {
@@ -337,6 +343,104 @@ impl <'a> Column {
 
             _ => panic!("Datatype not supported for uniques.")
         }
+
+    }
+
+    /// Fill null elements in column with value
+    pub fn fillna(&self, value: GenericType) {
+        let elem_type = match value {
+            GenericType::I(v) => DataType::Int64,
+            GenericType::F(v) => DataType::Float64,
+            GenericType::S(v) => DataType::Utf8,
+        };
+        // can fill only compatible column type
+        assert_eq!(&elem_type, self.data_type());
+
+        let mut values = self.to_array().unwrap();
+
+        match self.data_type() {
+            DataType::Float64 => {
+                let replace_with = match value {
+                    GenericType::F(v) => v,
+                    _ => panic!("Should not get here!")
+                };
+
+                let values = values.as_any().downcast_ref::<Float64Array>().unwrap();
+                for i in 0..values.len() {
+                    // let mut value = values.value(i) as f64;
+                    if values.is_valid(i) { continue }
+                    else {
+                        *values.value(i) = replace_with;
+                    }
+                    
+                }
+
+            },
+            _ => panic!("Not supported type for fill nan values")
+        }
+
+
+        let chunks = self.data().chunks();
+
+        for (idx, chunk) in chunks.iter().enumerate() {
+            // get index of null values
+            let datachunk = chunk.data_ref();
+            let bmap = datachunk.null_bitmap();
+            println!("chunk: {} bmap: {:?}", idx, bmap);
+
+            // match bmap {
+            //     Some(map) => {
+            //         let bitmap = map.clone().into_buffer().data();
+            //         println!("{:?}", bitmap);
+            //     },
+            //     _ => {}
+            // }
+            // let num_nulls = match bmap {
+            //     Some(map) => {
+            //             let buf = map.into_buffer().data();
+            //             println!("{:?}", buf);
+            //             buf
+            //             // map.len()
+            //     },
+            //     _ => {
+            //         let res: &[u8] = &[0u8];
+            //         res
+            //     }
+            // };
+            // println!("num_null: {:?}", num_nulls);
+            // bmap.
+        }
+
+
+        let ca = self.data();
+        println!("num_chunks: {}", ca.num_chunks());
+        let onechunk = ca.chunk(0);
+        // let null_in_chunk = onechunk.null_count();
+        // println!("null_in_chunk: {}", null_in_chunk);
+        let data = onechunk.data();
+        let null_bmp = data.null_bitmap();
+        let maplen = match null_bmp {
+            Some(map) => map.len(),
+            None => 0
+        };
+
+        let bitmap = null_bmp.clone().unwrap();
+        for i in 0..maplen {
+            let is_set = bitmap.is_set(i);
+            println!("elem {} is_set={}", i, is_set);
+        }
+
+        println!("{:?}", null_bmp);
+
+        // for i in 0..values.len() {
+        //     // println!("{} valid: {}", i, values.is_valid(i));
+        //     let mut this_value = values.value(i);
+
+        //     if !values.is_valid(i) {
+        //         values.value()
+        //     }
+        // }
+
 
     }
 
@@ -562,7 +666,16 @@ mod tests {
         let nuniques = uniques.clone().unwrap().len();
         println!("uniques: {:?} size:{}", uniques, nuniques);
         assert_eq!(37, nuniques);
+    }
 
+    #[test]
+    fn test_fillna_with_value() {
+        let dataframe = DataFrame::from_csv("./test/data/uk_cities_with_headers_with_null.csv", None);
+        let cols = dataframe.columns();
+        let column = &cols[1];
+        println!("{:?}", column.data_type());
+        let value =  GenericType::F(42f64);
+        column.fillna(value);
     }
 
 }
